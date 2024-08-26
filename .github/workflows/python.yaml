@@ -17,8 +17,6 @@ jobs:
           python-version: "3.12"
       - name: Install Poetry
         uses: snok/install-poetry@v1
-        #with:
-        #  virtualenvs-create: false
       - name: Install dependencies
         run: poetry update
       - name: Test with unittest
@@ -31,3 +29,10 @@ jobs:
         with:
           filename: coverage.xml
           badge: true
+          format: markdown
+      - name: Add Coverage Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: code-coverage-results.md
