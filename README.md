@@ -2,21 +2,6 @@
 
 This project contains Flask based File Uploader.
 
-## Versioning
-
-Please use [bump.sh](./bump.sh) script to increase the version of the app. This
-script will update version both in [pyproject.toml](./pyproject.toml) and
-[app version](./uploader/_version.py) files.
-
-:warning: If you don't want or unable to use this script it is important to
-update [version](./pyproject.toml#L3) in [pyproject.toml](./pyproject.toml) file
-as it is used when image is built to overwrite version in
-[app version](./uploader/_version.py) file.
-
-:warning: There is also
-[git hooks](https://github.com/thomasthiebaud/poetry-githooks) to use with
-poetry. You can enable them with `poetry run githooks setup`.
-
 ## Debugging
 
 You can use [debug.sh](./debug.sh) to debug the app locally:

@@ -15,19 +15,15 @@ classifiers=[
     "License :: OSI Approved :: Apache Software License",
 ]
 
-[tool.githooks]
-pre-commit = 'echo "__version__ = \"$(poetry version --short)\"" >uploader/_version.py && git add uploader/_version.py'
-
 [tool.poetry.dependencies]
 python = "^3.12"
 flask = "^3.0"
-flask-cors = "^3.0"
-flask-openapi3 = "^2.2"
+flask-cors = "^4.0"
+flask-openapi3 = "^3.1"
 
 [tool.poetry.dev-dependencies]
-autopep8 = "^2.0"
-coverage = "^6.5"
-poetry-githooks = "^2.0"
+autopep8 = "^2.3"
+coverage = "^7.6"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
