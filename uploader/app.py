@@ -88,15 +88,12 @@ app.config.update(
         "SECRET_KEY": os.urandom(20).hex(),
         # If upload folder is not defined, use the default path
         "UPLOAD_FOLDER": __upload_folder__,
-        # Read image version from file
+        # Read version from file
         "VERSION": __version__,
         "NAME": __name__,
     }
 )
 
-# CSRF protection is not needed with bearer token.
-# <https://security.stackexchange.com/a/170414>
-# <https://security.stackexchange.com/a/166798>
 # Enable safe CORS policy
 CORS(app, resources={r"/*": {"origins": "*", "send_wildcard": "False"}})
 

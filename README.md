@@ -21,12 +21,12 @@ poetry build --format wheel
 poetry export --format requirements.txt --output requirements.txt --without-hashes
 pip install --no-cache-dir gunicorn[gevent]
 pip install --no-cache-dir dist/uploader-*.whl -r requirements.txt
-./entrypoint.sh --without-nginx
+./config/entrypoint.sh
 ```
 
 You can provide `UPLOAD_FOLDER` as an
 [environment variable](#environment-variables) and bind to a different `port` in
-[entrypoint](./entrypoint.sh) before starting.
+[entrypoint](./config/entrypoint.sh) before starting.
 
 Stopping it:
 
@@ -44,10 +44,10 @@ use the following steps to run the app in Windows:
 poetry build --format wheel
 poetry export --format requirements.txt --output requirements.txt --without-hashes
 pip install --no-cache-dir dist/uploader-*.whl -r requirements.txt
-./start.sh
+./config/start.sh
 ```
 
-Please check `UPLOAD_FOLDER` and `port` in [start script](./start.sh) before
+Please check `UPLOAD_FOLDER` and `port` in [start script](./config/start.sh) before
 starting.
 
 You can stop it by stopping with `CTRL+C` or by closing the terminal.
