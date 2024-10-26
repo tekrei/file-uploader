@@ -105,7 +105,7 @@ def index():
             "name": app.config["NAME"],
             "version": app.config["VERSION"],
             "uploadFolder": app.config["UPLOAD_FOLDER"],
-            "swagger": url_for("openapi.swagger", _external=True),
+            "swagger": url_for("swagger.swagger", _external=True),
         }
     )
 

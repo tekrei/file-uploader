@@ -74,7 +74,7 @@ class AppTestCase(TestCase):
     def test_no_files(self):
         response = self.client.post("/files/", data={"file[]": []})
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
     def test_path_injection(self):
         response = self.client.post(
@@ -100,8 +100,8 @@ class AppTestCase(TestCase):
             "/files/",
             json={"data": [{"col1": 1, "col2": 1}, {"col1": 2, "col2": 2}]},
         )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual("No file is selected!", response.json["description"])
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual("missing", response.json[0]["type"])
 
     def test_delete_non_existing_file(self):
         response = self.client.delete("/files/__not_exist__.py")
