@@ -1,27 +1,17 @@
-ARG PYTHON_VERSION=3.12-slim
-FROM python:${PYTHON_VERSION} AS build
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    POETRY_HOME="/opt/poetry"
-
-RUN apt-get update && apt-get install -y --no-install-recommends curl
-
-# Install poetry
-RUN curl -sSL https://install.python-poetry.org | python -
-ENV PATH="$POETRY_HOME/bin:$PATH"
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm AS build
 
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock README.md ./
+COPY pyproject.toml uv.lock README.md ./
+
+RUN uv export --format requirements-txt --output-file requirements.txt \
+    --no-editable --no-dev --no-emit-workspace --frozen --no-index --no-hashes
+
 COPY ./uploader ./uploader
 
-# Build app
-RUN echo "__version__ = \"$(poetry version --short)\"" >uploader/_version.py \
-    && poetry build --format wheel \
-    && poetry export --format requirements.txt --output requirements.txt --without-hashes
+RUN uv build --wheel
 
-FROM python:${PYTHON_VERSION}
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1

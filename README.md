@@ -7,18 +7,17 @@ This project contains Flask based File Uploader.
 You can use [debug.sh](./debug.sh) to debug the app locally:
 
 ```bash
-poetry run ./debug.sh
+uv run ./debug.sh
 ```
 
 ## Running in GNU/Linux
 
-It is better to have Python and
-[Poetry](https://python-poetry.org/docs/#installation) installed before. You can
+It is better to have Python and [uv](https://docs.astral.sh/uv/getting-started/) installed before. You can
 use the following steps to run the app in GNU/Linux:
 
 ```bash
-poetry build --format wheel
-poetry export --format requirements.txt --output requirements.txt --without-hashes
+uv build --wheel
+uv export --format requirements-txt --output-file requirements.txt --no-editable --no-dev --no-emit-workspace --frozen --no-index --no-hashes
 pip install --no-cache-dir gunicorn[gevent]
 pip install --no-cache-dir dist/uploader-*.whl -r requirements.txt
 ./config/entrypoint.sh
@@ -36,13 +35,12 @@ kill $(cat file_uploader.pid)
 
 ## Running in Windows
 
-It is better to have Python and
-[Poetry](https://python-poetry.org/docs/#installation) installed before. You can
+It is better to have Python and [uv](https://docs.astral.sh/uv/getting-started/) installed before. You can
 use the following steps to run the app in Windows:
 
 ```bash
-poetry build --format wheel
-poetry export --format requirements.txt --output requirements.txt --without-hashes
+uv build --wheel
+uv export --format requirements-txt --output-file requirements.txt --no-editable --no-dev --no-emit-workspace --frozen --no-index --no-hashes
 pip install --no-cache-dir dist/uploader-*.whl -r requirements.txt
 ./config/start.sh
 ```
@@ -92,14 +90,13 @@ Here is the list of environment variables that are used:
 
 ## Package management
 
-We are using [poetry](https://python-poetry.org/) Python package and dependency
+We are using [uv](https://docs.astral.sh/uv/getting-started/) Python package and dependency
 manager.
 
-- Init interactively `poetry init`
-- Add package `poetry add package-name`
-- Remove package `poetry remove package-name`
-- Install dependencies `poetry install`
-- Update dependencies `poetry update`
-- Show available packages `poetry show`
-- Run a command in the virtualenv `poetry run command`
-- Open virtualenv `poetry shell`
+- Init interactively `uv init`
+- Add package `uv add package-name`
+- Remove package `uv remove package-name`
+- Create lockfile `uv lock`
+- Update dependencies `uv sync`
+- Show available packages `uv show`
+- Run a command in the virtualenv `uv run command`

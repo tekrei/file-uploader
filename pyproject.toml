@@ -1,30 +1,45 @@
-[tool.poetry]
+[tool.pdm.build]
+includes = []
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+authors = [
+    {name = "T. E. Kalayci"},
+]
+license = {text = "Apache-2.0"}
+requires-python = "<4.0,>=3.12"
+dependencies = [
+    "flask<4.0,>=3.0",
+    "flask-cors",
+    "flask-openapi3[swagger]",
+]
 name = "uploader"
 version = "0.1.0"
 description = "A file uploader application"
-authors = ["T. E. Kalayci"]
-license = "Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/tekrei/file-uploader"
-repository = "https://github.com/tekrei/file-uploader"
-documentation = "https://github.com/tekrei/file-uploader"
-keywords = ["file", "upload", "download", "flask", "python"]
-classifiers=[
+keywords = [
+    "file",
+    "upload",
+    "download",
+    "flask",
+    "python",
+]
+classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
     "License :: OSI Approved :: Apache Software License",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-flask = "^3.0"
-flask-cors = "*"
-flask-openapi3 = { extras = ["swagger"], version = "*" }
+[project.urls]
+homepage = "https://github.com/tekrei/file-uploader"
+repository = "https://github.com/tekrei/file-uploader"
+documentation = "https://github.com/tekrei/file-uploader"
 
-[tool.poetry.dev-dependencies]
-autopep8 = "*"
-coverage = "*"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "autopep8",
+    "coverage",
+    "pyproject-parser[cli]",
+]
