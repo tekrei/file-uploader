@@ -1,6 +1,6 @@
 # File Uploader
 
-This project contains Flask based File Uploader.
+This project contains a FastAPI-based file uploader.
 
 ## Debugging
 
@@ -18,7 +18,6 @@ use the following steps to run the app in GNU/Linux:
 ```bash
 uv build --wheel
 uv export --format requirements-txt --output-file requirements.txt --no-editable --no-dev --no-emit-workspace --frozen --no-index --no-hashes
-pip install --no-cache-dir gunicorn[gevent]
 pip install --no-cache-dir dist/uploader-*.whl -r requirements.txt
 ./config/entrypoint.sh
 ```
@@ -27,11 +26,7 @@ You can provide `UPLOAD_FOLDER` as an
 [environment variable](#environment-variables) and bind to a different `port` in
 [entrypoint](./config/entrypoint.sh) before starting.
 
-Stopping it:
-
-```bash
-kill $(cat file_uploader.pid)
-```
+Stop the foreground server with `CTRL+C`.
 
 ## Running in Windows
 
@@ -42,10 +37,10 @@ use the following steps to run the app in Windows:
 uv build --wheel
 uv export --format requirements-txt --output-file requirements.txt --no-editable --no-dev --no-emit-workspace --frozen --no-index --no-hashes
 pip install --no-cache-dir dist/uploader-*.whl -r requirements.txt
-./config/start.sh
+./config/start-windows.sh
 ```
 
-Please check `UPLOAD_FOLDER` and `port` in [start script](./config/start.sh) before
+Please check `UPLOAD_FOLDER` and `port` in [Windows start script](./config/start-windows.sh) before
 starting.
 
 You can stop it by stopping with `CTRL+C` or by closing the terminal.
@@ -74,19 +69,18 @@ docker run --name file-uploader -it --rm -p 80:80 file-uploader
 
 All endpoints will be available at [localhost](http://localhost)
 
-`File Uploader` code and logs are under `/app` folder in the container.
+`File Uploader` code is under `/app`; container logs are sent to stdout/stderr.
 
 ## Environment variables
 
 Here is the list of environment variables that are used:
 
 - `UPLOAD_FOLDER`: Path to the folder to store the uploaded files.
-- [WEB_CONCURRENCY](https://docs.gunicorn.org/en/stable/settings.html#workers):
+- [WEB_CONCURRENCY](https://www.uvicorn.org/settings/#production):
   The number of worker processes for handling requests.
-- [WEB_TIMEOUT](https://docs.gunicorn.org/en/stable/settings.html#timeout):
-  Workers silent for more than this many seconds are killed and restarted.
-- [WEB_KEEP_ALIVE](https://docs.gunicorn.org/en/stable/settings.html#keepalive):
+- [WEB_KEEP_ALIVE](https://www.uvicorn.org/settings/#timeouts):
   The number of seconds to wait for requests on a Keep-Alive connection.
+- `WEB_GRACEFUL_SHUTDOWN_TIMEOUT`: Seconds to wait for active requests to finish during shutdown.
 
 ## Package management
 

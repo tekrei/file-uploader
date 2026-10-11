@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm AS build
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm AS build
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY ./uploader ./uploader
 
 RUN uv build --wheel
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -22,12 +22,11 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY ./config/log.conf ./config/gunicorn.conf.py ./config/entrypoint.sh ./
+COPY ./config/entrypoint.sh ./
 
 COPY --from=build /app/dist/uploader-*.whl /app/requirements.txt ./
 
-RUN pip install --no-cache-dir gunicorn[gevent] \
-    && pip install --no-cache-dir uploader-*.whl -r requirements.txt \
+RUN pip install --no-cache-dir uploader-*.whl -r requirements.txt \
     && rm *.whl *.txt
 
 RUN chmod +x entrypoint.sh

@@ -11,9 +11,10 @@ authors = [
 license = {text = "Apache-2.0"}
 requires-python = "<4.0,>=3.12"
 dependencies = [
-    "flask<4.0,>=3.0",
-    "flask-cors",
-    "flask-openapi3[swagger]",
+    "fastapi<1.0,>=0.115",
+    "pathvalidate<4.0,>=3.2",
+    "python-multipart<1.0,>=0.0.9",
+    "uvicorn<1.0,>=0.30",
 ]
 name = "uploader"
 version = "0.1.0"
@@ -23,7 +24,7 @@ keywords = [
     "file",
     "upload",
     "download",
-    "flask",
+    "fastapi",
     "python",
 ]
 classifiers = [
@@ -41,5 +42,6 @@ documentation = "https://github.com/tekrei/file-uploader"
 dev = [
     "autopep8",
     "coverage",
+    "httpx2",
     "pyproject-parser[cli]",
 ]
