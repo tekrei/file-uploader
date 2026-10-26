@@ -4,7 +4,6 @@ import tempfile
 from unittest import TestCase
 
 from fastapi.testclient import TestClient
-from pathvalidate import sanitize_filename
 
 
 class AppTestCase(TestCase):
@@ -50,6 +49,11 @@ class AppTestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, self.content)
+
+        response = self.client.get("/files/", params={"filter": "*.py"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
 
         response = self.client.delete("/files/test.py")
 
@@ -124,12 +128,45 @@ class AppTestCase(TestCase):
             },
         )
 
-    def test_access_check_rejects_sibling_prefix(self):
+    def test_file_filter_does_not_accept_path_segments(self):
+        response = self.client.get("/files/", params={"filter": "../*.py"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+    def test_upload_rejects_file_above_size_limit(self):
         from uploader import app as uploader
 
-        sibling_path = f"{uploader.app.state.upload_folder}-outside/file.txt"
+        original_limit = uploader.MAX_FILE_SIZE_BYTES
+        uploader.MAX_FILE_SIZE_BYTES = 3
+        try:
+            response = self.client.post(
+                "/files/", files={"file[]": ("large.txt", b"four")}
+            )
+        finally:
+            uploader.MAX_FILE_SIZE_BYTES = original_limit
 
-        self.assertFalse(uploader.is_access_allowed(sibling_path))
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(self.client.get("/files/").json(), [])
+
+    def test_upload_rejects_too_many_files(self):
+        from uploader import app as uploader
+
+        original_limit = uploader.MAX_FILES_PER_REQUEST
+        uploader.MAX_FILES_PER_REQUEST = 1
+        try:
+            response = self.client.post(
+                "/files/",
+                files=[
+                    ("file[]", ("first.txt", b"first")),
+                    ("file[]", ("second.txt", b"second")),
+                ],
+            )
+        finally:
+            uploader.MAX_FILES_PER_REQUEST = original_limit
+
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(self.client.get("/files/").json(), [])
 
     def test_symlink_to_outside_is_not_accessible(self):
         from uploader.app import app
@@ -164,12 +201,18 @@ class AppTestCase(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["description"], "blocked.py is not allowed")
 
-    def test_filename_sanitizer_removes_path_components(self):
-        sanitized = sanitize_filename("../../file name.txt", platform="universal")
+    def test_upload_sanitizes_path_components_from_filename(self):
+        response = self.client.post(
+            "/files/", files={"file[]": ("../../file name.txt", self.content)}
+        )
 
-        self.assertNotIn("/", sanitized)
-        self.assertNotIn("\\", sanitized)
-        self.assertTrue(sanitized.endswith(".txt"))
+        self.assertEqual(response.status_code, 200)
+        uploaded_file = response.json()[0]
+        self.assertNotIn("/", uploaded_file["name"])
+        self.assertNotIn("\\", uploaded_file["name"])
+        self.assertTrue(uploaded_file["name"].endswith(".txt"))
+        self.assertEqual(self.client.get(uploaded_file["url"]).content, self.content)
+        self.assertEqual(self.client.delete(uploaded_file["url"]).status_code, 200)
 
     def test_wrong_data(self):
         response = self.client.post(

@@ -1,4 +1,4 @@
-import glob
+import fnmatch
 import logging
 import os
 import shutil
@@ -18,6 +18,10 @@ from . import __version__
 APP_NAME = "File Uploader"
 UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "/tmp/uploaded")
 SUPPORTED_EXTENSIONS = os.environ.get("SUPPORTED_EXTENSIONS")
+MAX_FILE_SIZE_BYTES = int(os.environ.get("MAX_FILE_SIZE_BYTES", "104857600"))
+MAX_FILES_PER_REQUEST = int(os.environ.get("MAX_FILES_PER_REQUEST", "10"))
+if MAX_FILE_SIZE_BYTES < 1 or MAX_FILES_PER_REQUEST < 1:
+    raise ValueError("Upload limits must be positive integers")
 supported_extensions = None
 if SUPPORTED_EXTENSIONS:
     supported_extensions = [
@@ -56,19 +60,46 @@ app.add_middleware(
 )
 
 
-def is_file_allowed(file_name: str) -> bool:
+def _is_file_allowed(file_name: str) -> bool:
     if supported_extensions:
         _, extension = os.path.splitext(file_name.lower())
         return extension in supported_extensions
     return True
 
 
-def is_access_allowed(folder: str) -> bool:
-    root = os.path.realpath(app.state.upload_folder)
+def _get_upload_root() -> str:
+    return os.path.realpath(app.state.upload_folder)
+
+
+def _is_access_allowed(folder: str) -> bool:
+    root = _get_upload_root()
     try:
         return os.path.commonpath((os.path.realpath(folder), root)) == root
     except ValueError:
         return False
+
+
+def _resolve_upload_path(
+    relative_path: str,
+    *,
+    status_code: int = 404,
+    detail: str = "File doesn't exist",
+) -> str:
+    parts = relative_path.replace("\\", "/").split("/")
+    safe_parts = [os.path.basename(part) for part in parts]
+    if (
+        not relative_path
+        or any(part in ("", ".", "..") for part in parts)
+        or any(safe != part for safe, part in zip(safe_parts, parts))
+        or any(sanitize_filename(part, platform="universal") != part for part in parts)
+        or any(not part for part in safe_parts)
+    ):
+        raise HTTPException(status_code=status_code, detail=detail)
+
+    file_path = os.path.join(_get_upload_root(), *safe_parts)
+    if not _is_access_allowed(file_path):
+        raise HTTPException(status_code=status_code, detail=detail)
+    return file_path
 
 
 @app.get("/", response_model=Information)
@@ -89,12 +120,26 @@ def files(
     limit: int = 20,
 ):
     logger.info("Filtering files with %s at %s", filter, app.state.upload_folder)
-    paths = glob.glob(
-        os.path.join(app.state.upload_folder, "**", filter), recursive=True
-    )
-    paths = [
-        path for path in paths if os.path.isfile(path) and is_access_allowed(path)
-    ]
+    upload_root = _get_upload_root()
+    paths = []
+    for directory, subdirectories, file_names in os.walk(upload_root):
+        subdirectories[:] = [
+            name
+            for name in subdirectories
+            if _is_access_allowed(os.path.join(directory, name))
+        ]
+        for file_name in file_names:
+            path = os.path.join(directory, file_name)
+            relative_path = os.path.relpath(path, upload_root).replace(os.sep, "/")
+            if (
+                os.path.isfile(path)
+                and _is_access_allowed(path)
+                and (
+                    fnmatch.fnmatchcase(file_name, filter)
+                    or fnmatch.fnmatchcase(relative_path, filter)
+                )
+            ):
+                paths.append(path)
     paths.sort(key=os.path.getmtime)
     if start > -1:
         logger.info("Starting with %s. file and returning %s files", start, limit)
@@ -105,9 +150,7 @@ def files(
             "url": str(
                 request.url_for(
                     "get_file",
-                    file_name=os.path.relpath(path, app.state.upload_folder).replace(
-                        os.sep, "/"
-                    ),
+                    file_name=os.path.relpath(path, upload_root).replace(os.sep, "/"),
                 )
             ),
         }
@@ -117,17 +160,15 @@ def files(
 
 @app.get("/files/{file_name:path}", name="get_file")
 def get_file(file_name: str):
-    file_path = os.path.join(app.state.upload_folder, file_name)
-    if not is_access_allowed(file_path) or not os.path.isfile(file_path):
+    file_path = _resolve_upload_path(file_name)
+    if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="File doesn't exist")
     return FileResponse(file_path)
 
 
 @app.delete("/files/{file_name:path}")
 def delete(file_name: str):
-    file_path = os.path.join(app.state.upload_folder, file_name)
-    if not is_access_allowed(file_path):
-        raise HTTPException(status_code=404, detail="File doesn't exist")
+    file_path = _resolve_upload_path(file_name)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File doesn't exist")
     os.remove(file_path)
@@ -135,37 +176,49 @@ def delete(file_name: str):
     return {"success": True}
 
 
-def create_upload_folder(folder: str | None) -> str:
-    upload_root = app.state.upload_folder
+def _create_upload_folder(folder: str | None) -> str:
+    upload_root = _get_upload_root()
     os.makedirs(upload_root, exist_ok=True)
     upload_folder = upload_root
     if folder:
-        upload_folder = os.path.join(upload_root, folder)
-        if not is_access_allowed(upload_folder):
-            raise HTTPException(status_code=400, detail=f"{folder} folder is not allowed!")
+        upload_folder = _resolve_upload_path(
+            folder,
+            status_code=400,
+            detail=f"{folder} folder is not allowed!",
+        )
         os.makedirs(upload_folder, exist_ok=True)
     return upload_folder
 
 
-def upload_file(
+def _upload_file(
     request: Request,
     upload_folder: str,
     file: UploadFile,
 ) -> FileInfo:
     if not file.filename:
         raise HTTPException(status_code=400, detail="File is not selected")
-    if not is_file_allowed(file.filename):
+    if not _is_file_allowed(file.filename):
         raise HTTPException(status_code=400, detail=f"{file.filename} is not allowed")
-    file_name = sanitize_filename(file.filename, platform="universal")
+    file_name = os.path.basename(
+        sanitize_filename(file.filename, platform="universal").replace("\\", "/")
+    )
     if not file_name:
         raise HTTPException(status_code=400, detail="File name is not valid")
-    file_path = os.path.join(upload_folder, file_name)
+    relative_folder = os.path.relpath(
+        upload_folder, _get_upload_root()
+    )
+    relative_path = (
+        file_name
+        if relative_folder == "."
+        else os.path.join(relative_folder, file_name)
+    )
+    file_path = _resolve_upload_path(relative_path)
     with open(file_path, "wb") as destination:
         shutil.copyfileobj(file.file, destination)
-    relative_path = os.path.relpath(file_path, app.state.upload_folder).replace(
-        os.sep, "/"
-    )
-    file_url = str(request.url_for("get_file", file_name=relative_path))
+    file_url_path = os.path.relpath(
+        file_path, _get_upload_root()
+    ).replace(os.sep, "/")
+    file_url = str(request.url_for("get_file", file_name=file_url_path))
     return FileInfo(name=file_name, url=file_url)
 
 
@@ -177,10 +230,20 @@ def upload(
 ):
     if not files:
         raise HTTPException(status_code=400, detail="No file is selected!")
-    upload_folder = create_upload_folder(folder)
+    if len(files) > MAX_FILES_PER_REQUEST:
+        raise HTTPException(
+            status_code=413,
+            detail=f"No more than {MAX_FILES_PER_REQUEST} files may be uploaded per request",
+        )
+    if any(file.size is None or file.size > MAX_FILE_SIZE_BYTES for file in files):
+        raise HTTPException(
+            status_code=413,
+            detail=f"Each file must be no larger than {MAX_FILE_SIZE_BYTES} bytes",
+        )
+    upload_folder = _create_upload_folder(folder)
     uploaded_files = []
     for file in files:
-        uploaded_file = upload_file(request, upload_folder, file)
+        uploaded_file = _upload_file(request, upload_folder, file)
         logger.info("Successfully uploaded %s file", uploaded_file.url)
         uploaded_files.append(uploaded_file)
     return uploaded_files
